@@ -14,7 +14,11 @@
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--si-bg);color:var(--si-fg);font-family:var(--si-font)}
-    .si-wrapper{max-width: 900px;margin: 24px auto;padding: 12px;}
+    .si-wrapper {
+    max-width: 1400px;   /* <--- CHANGED from 900px to 1400px (Huge!) */
+    margin: 24px auto;
+    padding: 12px;
+}
 
     .si-card{background:linear-gradient(180deg,#0d142b,#0a0f22 60%);border:1px solid #1a264d;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden}
 
@@ -24,7 +28,11 @@
     .si-btn{cursor:pointer;border:1px solid #2a3a73;background:linear-gradient(180deg,#111a37,#0b142e);color:var(--si-fg);padding:8px 12px;border-radius:10px;font-weight:600}
     .si-btn:active{transform:translateY(1px)}
 
-    .si-stage{position:relative;width:100%;aspect-ratio: 4/3; /* responsive */}
+    .si-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;  /* <--- CHANGED from 4/3 to 16/9 (Widescreen) */
+}
     canvas{position:absolute;inset:0;width:100%;height:100%;display:block;background:radial-gradient(80% 120% at 50% 0%, rgba(124,209,255,.10), transparent 55%),
                                 radial-gradient(120% 120% at 50% 120%, rgba(124,209,255,.06), transparent 55%),
                                 #060a18}
