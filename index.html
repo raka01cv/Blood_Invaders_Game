@@ -14,11 +14,14 @@
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--si-bg);color:var(--si-fg);font-family:var(--si-font)}
+    
     .si-wrapper {
-    max-width: min(80vw, 142vh);
-    margin: 2vh auto; /* Centers it vertically and horizontally */
-    padding: 12px;
-}
+      /* Smart sizing: 80% width, but don't get too tall */
+      width: 80vw;
+      max-width: min(80vw, 142vh);
+      margin: 2vh auto; 
+      padding: 12px;
+    }
 
     .si-card{background:linear-gradient(180deg,#0d142b,#0a0f22 60%);border:1px solid #1a264d;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden}
 
@@ -29,10 +32,10 @@
     .si-btn:active{transform:translateY(1px)}
 
     .si-stage {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16/9;  /* <--- CHANGED from 4/3 to 16/9 (Widescreen) */
-}
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;  /* Widescreen */
+    }
     canvas{position:absolute;inset:0;width:100%;height:100%;display:block;background:radial-gradient(80% 120% at 50% 0%, rgba(124,209,255,.10), transparent 55%),
                                 radial-gradient(120% 120% at 50% 120%, rgba(124,209,255,.06), transparent 55%),
                                 #060a18}
@@ -85,34 +88,29 @@
 
 <script>
 (() => {
-  // --- Public init API (attach to window for easy embedding) ---
   window.SpaceInvaders = { init };
 
   const DEFAULTS = {
     playerImageSrc: null, 
     alienImageSrcs: [],   
     bullet: {
-      count: 4,         // Four blue circular bullets per shot stacked vertically
+      count: 4,
       radius: 5,
-      spacing: 12,      // pixels between bullets in the vertical stack
+      spacing: 12,
       color: '#2ea8ff',
       speed: 11,
       cooldownMs: 220
     },
     player: {
-      widthPct: 8,      // of canvas width
+      widthPct: 8,
       heightPct: 8,
       speed: 7,
       lives: 3
     },
     aliens: {
-      rows: 5,
-      cols: 8,          // Adjusted cols slightly for better spacing with your images
-      gutterX: 0.045,   // horizontal spacing (fraction of canvas width)
-      gutterY: 0.05,    // vertical spacing (fraction of canvas height)
-      sizePct: 7,       // width percent
+      sizePct: 7,
       baseSpeed: 1.3,
-      stepDown: 22      // pixels to drop on wall-bounce
+      stepDown: 22
     }
   };
 
@@ -130,7 +128,6 @@
     let playing = false, paused = false, gameOver = false;
     let score = 0, level = 1;
 
-    // Responsive canvas sizing while keeping drawing space consistent
     function fitCanvas(){
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
@@ -141,11 +138,9 @@
     fitCanvas();
     window.addEventListener('resize', fitCanvas);
 
-    // --- Assets ---
     const playerImage = loadImage(cfg.playerImageSrc);
     const alienImages = (cfg.alienImageSrcs || []).map(loadImage);
 
-    // --- Entities ---
     const keys = { left:false, right:false, fire:false };
     const pads = { left:false, right:false, fire:false };
 
@@ -154,7 +149,7 @@
       reset(){
         const W = canvas.clientWidth, H = canvas.clientHeight;
         this.w = pct(W, cfg.player.widthPct);
-        this.h = this.w; // Keep ship square
+        this.h = this.w; 
         this.x = (W - this.w)/2;
         this.y = H - this.h - 16;
       },
@@ -162,7 +157,6 @@
         if(playerImage && playerImage.complete && !playerImage.error){
           ctx.drawImage(playerImage, this.x, this.y, this.w, this.h);
         } else {
-          // fallback ship (triangle) if image fails
           ctx.save();
           ctx.translate(this.x, this.y);
           ctx.beginPath();
@@ -177,36 +171,53 @@
       }
     };
 
-    /** Alien formation */
+    /** * NEW ALIEN SPAWN LOGIC:
+     * Spawns exactly one of each image in a centered row.
+     */
     let aliens = [];
-    let alienDir = 1; // 1: right, -1: left
-    let alienSpeed = cfg.aliens.baseSpeed; // grows with level
+    let alienDir = 1; 
+    let alienSpeed = cfg.aliens.baseSpeed;
 
     function spawnAliens(){
       const W = canvas.clientWidth, H = canvas.clientHeight;
       const size = pct(W, cfg.aliens.sizePct);
       aliens = [];
-      for(let r=0; r<cfg.aliens.rows; r++){
-        for(let c=0; c<cfg.aliens.cols; c++){
-          // Rotate through the images based on row index
-          const imgIndex = r % alienImages.length;
-          const img = alienImages.length ? alienImages[imgIndex] : null;
-          
-          aliens.push({
-            alive: true,
-            x: pct(W, 0.06) + c * (size + pct(W, cfg.aliens.gutterX)),
-            y: pct(H, 0.08) + r * (size + pct(H, cfg.aliens.gutterY)),
-            w: size,
-            h: size,
-            img
-          });
-        }
+
+      // Determine how many aliens we can make based on the number of images
+      const numAliens = alienImages.length > 0 ? alienImages.length : 5;
+      
+      // Calculate total width of all aliens side-by-side
+      const totalWidth = numAliens * size;
+      
+      // Calculate remaining empty space
+      const remainingSpace = W - totalWidth;
+      
+      // Divide space evenly (one gap on left, one on right, and between each alien)
+      const gap = remainingSpace / (numAliens + 1);
+
+      // Fixed Vertical Position (15% from top)
+      const fixedY = H * 0.15;
+
+      for(let i=0; i<numAliens; i++){
+        const img = alienImages.length ? alienImages[i % alienImages.length] : null;
+        
+        // Calculate X position: Gap + (Index * (Size + Gap))
+        const x = gap + i * (size + gap);
+
+        aliens.push({
+          alive: true,
+          x: x,
+          y: fixedY,
+          w: size,
+          h: size,
+          img: img
+        });
       }
+
       alienDir = 1;
       alienSpeed = cfg.aliens.baseSpeed + (level-1)*0.25;
     }
 
-    /** Bullets (player only) */
     const bullets = [];
     let lastShotAt = 0;
 
@@ -215,13 +226,12 @@
       if(now - lastShotAt < cfg.bullet.cooldownMs) return;
       lastShotAt = now;
       const cx = player.x + player.w/2;
-      const baseY = player.y - 8; // just above the ship
+      const baseY = player.y - 8; 
       for(let i=0; i<cfg.bullet.count; i++){
         bullets.push({ x: cx, y: baseY - i*cfg.bullet.spacing, r: cfg.bullet.radius, vy: -cfg.bullet.speed });
       }
     }
 
-    // --- Input ---
     window.addEventListener('keydown', (e)=>{
       if(e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
       if(e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
@@ -238,7 +248,6 @@
     });
     root.querySelector('[data-action="restart"]').addEventListener('click', ()=> restart());
 
-    // Mobile pads
     root.querySelectorAll('[data-pad]').forEach(btn=>{
       const name = btn.getAttribute('data-pad');
       const set = (val)=>{ pads[name] = val; if(name==='fire' && val) { if(!playing && !gameOver) start(); fire(); }}
@@ -251,14 +260,13 @@
 
     document.addEventListener('visibilitychange', ()=>{ if(document.hidden) paused = true; });
 
-    // --- Game lifecycle ---
     function start(){
       playing = true; paused = false; gameOver = false; bannerEl.style.display='none';
     }
 
     function restart(){
       score = 0; level = 1; player.lives = cfg.player.lives; bullets.length = 0; 
-      player.reset(); // Reset player first to get dimensions
+      player.reset(); 
       spawnAliens(); 
       updateHUD(); 
       bannerEl.style.display=''; 
@@ -282,7 +290,6 @@
       else bannerEl.style.display='none';
     }
 
-    // helpers
     function pct(n, p){ return (n * p) / 100; }
     function deepMerge(base, patch){
       for(const k in patch){
@@ -298,32 +305,25 @@
       return img;
     }
 
-    // Core loop
     let last = performance.now();
     function tick(now){
       requestAnimationFrame(tick);
-      const dt = Math.min(32, now - last); // clamp ms
+      const dt = Math.min(32, now - last); 
       last = now;
-
-      fitCanvas(); // keep buffer crisp
+      fitCanvas(); 
       ctx.clearRect(0,0,canvas.clientWidth, canvas.clientHeight);
-
       if(!playing || paused){
-        // Draw static frame
         player.draw();
         drawAliens();
         drawBullets();
         return;
       }
-
-      step(dt/16.6667); // normalize to ~60fps units
+      step(dt/16.6667); 
       draw();
     }
 
     function step(t){
       const W = canvas.clientWidth, H = canvas.clientHeight;
-
-      // Player movement
       const left = keys.left || pads.left;
       const right = keys.right || pads.right;
       const fireBtn = keys.fire || pads.fire;
@@ -331,11 +331,9 @@
       if(right && !left) player.x = Math.min(W - player.w, player.x + player.speed * t);
       if(fireBtn) fire();
 
-      // Bullets
       for(const b of bullets){ b.y += b.vy * t; }
       for(let i=bullets.length-1;i>=0;i--) if(bullets[i].y + bullets[i].r < 0) bullets.splice(i,1);
 
-      // Aliens movement
       let hitWall = false;
       for(const a of aliens){
         if(!a.alive) continue;
@@ -347,7 +345,6 @@
         for(const a of aliens){ a.y += cfg.aliens.stepDown; }
       }
 
-      // Collisions: bullet vs alien
       outer: for(let i=bullets.length-1; i>=0; i--){
         const b = bullets[i];
         for(const a of aliens){
@@ -359,13 +356,11 @@
         }
       }
 
-      // Win condition -> next level
       if(aliens.every(a=>!a.alive)){
         level++; spawnAliens();
         score += 100; updateHUD();
       }
 
-      // Lose if aliens reach player
       for(const a of aliens){
         if(a.alive && a.y + a.h >= player.y){
           player.lives -= 1; updateHUD();
@@ -386,10 +381,8 @@
       for(const a of aliens){
         if(!a.alive) continue;
         if(a.img && a.img.complete && !a.img.error){
-          // Draw image
           ctx.drawImage(a.img, a.x, a.y, a.w, a.h);
         } else {
-          // Fallback block
           ctx.fillStyle = '#7cd1ff';
           ctx.fillRect(a.x, a.y, a.w, a.h);
         }
@@ -411,8 +404,6 @@
       const dx = cx - nx, dy = cy - ny; return (dx*dx + dy*dy) <= r*r;
     }
 
-    // --- INITIALIZE WITH USER IMAGES ---
-    // This is where we load the specific files you requested
     restart();
     player.reset();
     requestAnimationFrame(tick);
@@ -421,27 +412,26 @@
 
 // Initialize logic with your images
 SpaceInvaders.init('#space-invaders', {
-  playerImageSrc: 'ship.png',
+  // Use the "Ship/" and "aliens/" folder structure
+  playerImageSrc: 'Ship/ship.png',
+  
   alienImageSrcs: [
-    'a1.png',
-    'a2.png',
-    'a3.png',
-    'a4.png',
-    'a5.png'
+    'aliens/a1.png',
+    'aliens/a2.png',
+    'aliens/a3.png',
+    'aliens/a4.png',
+    'aliens/a5.png'
   ],
 
-  // SETTINGS FOR THE PLAYER
   player: {
-    widthPct: 12,   // <--- INCREASED THIS (Default was 8). Try 14 or 15 for even bigger!
-    speed: 7,       // You might want to increase this to 8 or 9 if the ship feels too heavy
+    widthPct: 12,   
+    speed: 7,       
     lives: 3
   },
   
   aliens: {
-    // I slightly increased the size of the aliens so your images look clear
-    sizePct: 4.5 
-    cols: 12,      
-    rows: 5
+    // 9% size to look nice in a single row
+    sizePct: 9
   }
 });
 </script>
